@@ -11,7 +11,7 @@ from astropy import constants as const
 
 
 class synth(object):
-    def __init__(self, rho, T, vz, thin=False):
+    def __init__(self, rho, T, vz):
         """
         Synthetic observation of 21cm line emission
         author: A. Marchal
@@ -26,7 +26,6 @@ class synth(object):
         self.rho = rho *u.g*u.cm**-3
         self.T = T *u.K
         self.vz = vz * 1.e-5 *u.km*u.s**-1
-        self.thin = thin
 
         # Constant
         self.m_h = 1.6737236e-27 *u.kg
@@ -36,7 +35,7 @@ class synth(object):
         self.dz = self.box_size /self.resolution
         self.dz_cm = self.dz.to(u.cm)
 
-    def gen(self, vmin=-40, vmax=40, dv=0.8, T_lim=[0,np.inf]):        
+    def gen(self, vmin=-40, vmax=40, dv=0.8, T_lim=[0,np.inf], thin=False):        
         # Cut temperature field 
         Tk_lim_inf = T_lim[0]
         Tk_lim_sup = T_lim[1]
@@ -64,7 +63,7 @@ class synth(object):
             for j in np.arange(T_cube_phase.shape[2]):
                 map_u[:,i,j] = u
 
-        if self.thin == True:
+        if thin == True:
             Tb_thin_fast = np.zeros((len(u), T_cube_phase.shape[1], T_cube_phase.shape[2]))
             for i in tqdm(range(len(u))):
                 dI = n_Delta * np.exp(- (u[i] - (vz_cube_phase))**2 / (2.*Delta2))
@@ -107,5 +106,5 @@ if __name__ == '__main__':
     T_cube = hdu_list_T[0].data #K
     vz_cube = hdu_list_vz[0].data #m.s-1
 
-    core = synth(rho=rho_cube, T=T_cube, vz=vz_cube, thin=True)
-    cube = core.gen(vmin=-40, vmax=40, dv=0.8)
+    core = synth(rho=rho_cube, T=T_cube, vz=vz_cube)
+    cube = core.gen(vmin=-40, vmax=40, dv=0.8, thin=True)
