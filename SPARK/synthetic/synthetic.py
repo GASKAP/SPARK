@@ -108,4 +108,4 @@ if __name__ == '__main__':
     vz_cube = hdu_list_vz[0].data #m.s-1
 
     core = synth(rho=rho_cube, T=T_cube, vz=vz_cube, thin=True)
-    foo = core.gen(vmin=-40, vmax=40, dv=0.8)
+    cube = core.gen(vmin=-40, vmax=40, dv=0.8)
