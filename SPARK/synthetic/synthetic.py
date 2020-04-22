@@ -57,7 +57,7 @@ class synth(object):
         n_Delta = n / np.sqrt(Delta2)
 
         # Spectral range
-        u = np.arange(vmin,vmax+reso, reso)
+        u = np.arange(vmin,vmax+dv, dv)
 
         map_u = np.zeros((len(u), T_cube_phase.shape[1], T_cube_phase.shape[2]))
         for i in np.arange(T_cube_phase.shape[1]):
@@ -101,7 +101,7 @@ if __name__ == '__main__':
     #Velocity range and channel spacing
     vmin = -40 #km.s-1
     vmax = 40 #km.s-1
-    reso = 0.8 #km.s-1
+    dv = 0.8 #km.s-1
     
     rho_cube = hdu_list_rho[0].data #g.cm-3
     T_cube = hdu_list_T[0].data #K
