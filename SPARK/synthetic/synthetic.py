@@ -43,9 +43,9 @@ class synth(object):
 
         idx_phase = np.where((self.T.value > Tk_lim_inf) & (self.T.value < Tk_lim_sup))
         
-        rho_cube_phase = np.zeros((rho_cube.shape[0], rho_cube.shape[1], rho_cube.shape[2]))
-        T_cube_phase = np.zeros((rho_cube.shape[0], rho_cube.shape[1], rho_cube.shape[2]))
-        vz_cube_phase = np.zeros((rho_cube.shape[0], rho_cube.shape[1], rho_cube.shape[2]))
+        rho_cube_phase = np.zeros((self.rho.value.shape[0], self.rho.value.shape[1], self.rho.value.shape[2]))
+        T_cube_phase = np.zeros((self.rho.value.shape[0], self.rho.value.shape[1], self.rho.value.shape[2]))
+        vz_cube_phase = np.zeros((self.rho.value.shape[0], self.rho.value.shape[1], self.rho.value.shape[2]))
         
         rho_cube_phase[idx_phase] = self.rho.value[idx_phase]
         T_cube_phase[idx_phase] = self.T.value[idx_phase]
