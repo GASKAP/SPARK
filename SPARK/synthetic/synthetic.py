@@ -69,7 +69,7 @@ class synth(object):
             for i in tqdm(range(len(u))):
                 dI = n_Delta * np.exp(- (u[i] - (vz_cube_phase))**2 / (2.*Delta2))
                 dI[np.where(dI != dI)] = 0.
-                Tb_thin_fast[i] = 1./(self.C.value * np.sqrt(2.*np.pi)) * np.sum(dI,0) * self.dz_cm
+                Tb_thin_fast[i] = 1./(self.C.value * np.sqrt(2.*np.pi)) * np.sum(dI,0) * self.dz_cm.value
 
             return Tb_thin_fast
 
@@ -80,7 +80,7 @@ class synth(object):
             for i in tqdm(range(T_cube_phase.shape[0])):    
                 Tb_z = np.zeros((len(u), T_cube_phase.shape[1], T_cube_phase.shape[2]))
                 tau_z = 1. / (self.C.value * np.sqrt(2.*np.pi)) * n_Delta[i] / T_cube_phase[i] * np.exp(- (map_u - (vz_cube_phase[i]))**2 
-                                                                                               / (2.*Delta2[i])) * self.dz_cm
+                                                                                               / (2.*Delta2[i])) * self.dz_cm.value
                 idx_nonzero = ~np.isnan(tau_z[0])
                 Tb_z[:,idx_nonzero] = T_cube_phase[i,idx_nonzero] * (1. - np.exp(-1.*tau_z[:,idx_nonzero])) * np.exp(-1.*tau_in_front[:,idx_nonzero])
                 
