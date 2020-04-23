@@ -53,7 +53,8 @@ class synth(object):
         # Preliminary calculation
         Delta2 = ((const.k_B.value * T_cube_phase / self.m_h.value)) * 1.e-6 #km.s-1
         n = rho_cube_phase/(self.m_h.value*1.e3)
-        n_Delta = n / np.sqrt(Delta2)
+        Delta = np.sqrt(Delta2)
+        n_Delta = n / Delta
 
         # Spectral range
         u = np.arange(vmin,vmax+dv, dv)
@@ -64,13 +65,21 @@ class synth(object):
                 map_u[:,i,j] = u
 
         if thin == True:
-            Tb_thin_fast = np.zeros((len(u), T_cube_phase.shape[1], T_cube_phase.shape[2]))
-            for i in tqdm(range(len(u))):
-                dI = n_Delta * np.exp(- (u[i] - (vz_cube_phase))**2 / (2.*Delta2))
-                dI[np.where(dI != dI)] = 0.
-                Tb_thin_fast[i] = 1./(self.C.value * np.sqrt(2.*np.pi)) * np.sum(dI,0) * self.dz_cm.value
+            Tb_thin_fast = np.zeros((len(u), T_cube_phase.shape[1], T_cube_phase.shape[2]))            
+            tau_thin_fast = np.zeros((len(u), T_cube_phase.shape[1], T_cube_phase.shape[2]))
 
-            return Tb_thin_fast
+            for i in tqdm(range(len(u))):
+                phi = 1. / np.sqrt(2.*np.pi) / Delta * np.exp(- (u[i] - (vz_cube_phase))**2 / (2.*Delta2))
+                n_phi = n * phi
+                tau_v = n_phi / T_cube_phase
+
+                n_phi[np.where(n_phi != n_phi)] = 0.
+                tau_v[tau_v != tau_v] = 0.
+
+                Tb_thin_fast[i] = 1. / self.C.value * np.sum(n_phi,0) * self.dz_cm.value
+                tau_thin_fast[i] = 1. / self.C.value * np.sum(tau_v,0) * self.dz_cm.value
+
+            return Tb_thin_fast, tau_thin_fast
 
         else:
             Tb = np.zeros((len(u), T_cube_phase.shape[1], T_cube_phase.shape[2]))
@@ -86,7 +95,7 @@ class synth(object):
                 tau_in_front[:,idx_nonzero] += tau_z[:,idx_nonzero]
                 
                 Tb += Tb_z 
-            return Tb
+            return Tb, tau_in_front
 
 
 if __name__ == '__main__':    
@@ -104,7 +113,8 @@ if __name__ == '__main__':
     
     rho_cube = hdu_list_rho[0].data #g.cm-3
     T_cube = hdu_list_T[0].data #K
-    vz_cube = hdu_list_vz[0].data #m.s-1
+    vz_cube = hdu_list_vz[0].data #cm.s-1
 
     core = synth(rho=rho_cube, T=T_cube, vz=vz_cube)
-    cube = core.gen(vmin=-40, vmax=40, dv=0.8, thin=True)
+    cube, tau = core.gen(vmin=-40, vmax=40, dv=0.8, thin=False)
+    cube_thin, tau_thin = core.gen(vmin=-40, vmax=40, dv=0.8, thin=True)
