@@ -24,6 +24,7 @@ class synth(object):
         """    
         super(synth, self).__init__()
         if len(rho.shape) == 1:
+            self.dim = 1
             self.rho = np.zeros((len(rho),1,1)) *u.g*u.cm**-3
             self.T = np.zeros((len(T),1,1)) *u.K
             self.vz = np.zeros((len(vz),1,1)) *u.km*u.s**-1
@@ -33,6 +34,7 @@ class synth(object):
             self.vz[:,0,0] = vz * 1.e-5 *u.km*u.s**-1
             
         else:
+            self.dim = 3
             self.rho = rho *u.g*u.cm**-3
             self.T = T *u.K
             self.vz = vz * 1.e-5 *u.km*u.s**-1
@@ -89,8 +91,11 @@ class synth(object):
 
                 Tb_thin_fast[i] = 1. / self.C.value * np.sum(n_phi,0) * self.dz_cm.value
                 tau_thin_fast[i] = 1. / self.C.value * np.sum(tau_v,0) * self.dz_cm.value
-
-            return Tb_thin_fast, tau_thin_fast
+            
+            if self.dim == 1:
+                return Tb_thin_fast[:,0,0], tau_thin_fast[:,0,0]
+            else:
+                return Tb_thin_fast, tau_thin_fast
 
         else:
             Tb = np.zeros((len(u), T_cube_phase.shape[1], T_cube_phase.shape[2]))
@@ -106,7 +111,10 @@ class synth(object):
                 tau_in_front[:,idx_nonzero] += tau_z[:,idx_nonzero]
                 
                 Tb += Tb_z 
-            return Tb, tau_in_front
+            if self.dim == 1:
+                return Tb[:,0,0], tau_in_front[:,0,0]
+            else:
+                return Tb, tau_in_front
 
 
 if __name__ == '__main__':    
@@ -122,9 +130,9 @@ if __name__ == '__main__':
     vmax = 40 #km.s-1
     dv = 0.8 #km.s-1
     
-    rho_cube = hdu_list_rho[0].data #g.cm-3
-    T_cube = hdu_list_T[0].data #K
-    vz_cube = hdu_list_vz[0].data #cm.s-1
+    rho_cube = hdu_list_rho[0].data[:,0,0] #g.cm-3
+    T_cube = hdu_list_T[0].data[:,0,0] #K
+    vz_cube = hdu_list_vz[0].data[:,0,0] #cm.s-1
 
     core = synth(rho=rho_cube, T=T_cube, vz=vz_cube)
     cube, tau = core.gen(vmin=-40, vmax=40, dv=0.8, thin=False)
