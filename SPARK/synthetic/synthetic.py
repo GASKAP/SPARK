@@ -23,9 +23,19 @@ class synth(object):
         --------
         """    
         super(synth, self).__init__()
-        self.rho = rho *u.g*u.cm**-3
-        self.T = T *u.K
-        self.vz = vz * 1.e-5 *u.km*u.s**-1
+        if len(rho.shape) == 1:
+            self.rho = np.zeros((len(rho),1,1)) *u.g*u.cm**-3
+            self.T = np.zeros((len(T),1,1)) *u.K
+            self.vz = np.zeros((len(vz),1,1)) *u.km*u.s**-1
+
+            self.rho[:,0,0] = rho *u.g*u.cm**-3
+            self.T[:,0,0] = T *u.K
+            self.vz[:,0,0] = vz * 1.e-5 *u.km*u.s**-1
+            
+        else:
+            self.rho = rho *u.g*u.cm**-3
+            self.T = T *u.K
+            self.vz = vz * 1.e-5 *u.km*u.s**-1
 
         # Constant
         self.m_h = 1.6737236e-27 *u.kg
@@ -34,6 +44,7 @@ class synth(object):
         self.resolution = 1024
         self.dz = self.box_size /self.resolution
         self.dz_cm = self.dz.to(u.cm)
+
 
     def gen(self, vmin=-40, vmax=40, dv=0.8, T_lim=[0,np.inf], thin=False):        
         # Cut temperature field 
