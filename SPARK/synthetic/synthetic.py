@@ -11,7 +11,7 @@ from astropy import constants as const
 
 
 class synth(object):
-    def __init__(self, rho, T, vz):
+    def __init__(self, rho, T, vz, dz):
         """
         Synthetic observation of 21cm line emission
         author: A. Marchal
@@ -42,9 +42,7 @@ class synth(object):
         # Constant
         self.m_h = 1.6737236e-27 *u.kg
         self.C = 1.82243e18 *u.K**-1 *u.cm**-2 / (u.km * u.s**-1)
-        self.box_size = 40 *u.pc
-        self.resolution = 1024
-        self.dz = self.box_size /self.resolution
+        self.dz = dz *u.pc
         self.dz_cm = self.dz.to(u.cm)
 
 
@@ -134,6 +132,6 @@ if __name__ == '__main__':
     T_cube = hdu_list_T[0].data[:,0,0] #K
     vz_cube = hdu_list_vz[0].data[:,0,0] #cm.s-1
 
-    core = synth(rho=rho_cube, T=T_cube, vz=vz_cube)
+    core = synth(rho=rho_cube, T=T_cube, vz=vz_cube, dz=40/1024)
     cube, tau = core.gen(vmin=-40, vmax=40, dv=0.8, thin=False)
     cube_thin, tau_thin = core.gen(vmin=-40, vmax=40, dv=0.8, thin=True)
