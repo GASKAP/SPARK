@@ -80,6 +80,62 @@ class lbfgs_abs(object):
         return result, params_tau, params_Tb
 
 
+    def new_run(self, n_gauss=18, lb_amp=0, ub_amp=100, lb_mu=1, ub_mu=500, lb_sig=1, ub_sig=100, lambda_Tb=1, 
+            lambda_tau=1, lambda_mu=100, lambda_sig=100, iprint_init=1, amp_fact_init=0.666, sig_init=2., 
+            maxiter=15000, maxiter_init=15000, iprint=1):
+    
+        #Dimensions
+        dim_v = len(self.Tb)
+
+        #RMS cube format 
+        rms = [self.rms_Tb,self.rms_tau]
+
+        cube = np.moveaxis(np.array([self.Tb,self.tau]),0,1)
+        x = np.arange(dim_v)
+
+        params = np.full((3*n_gauss,2),0.)
+        params[2::3] = 1
+
+        for i in np.arange(n_gauss):
+            #Allocate and init arrays            
+            n = i+1
+            model = np.zeros(cube.shape)
+
+            for j in np.arange(2):
+                for k in np.arange(n):
+                    model[:,j] += self.gaussian(x, params[0+(k*3),j], params[1+(k*3),j], params[2+(k*3),j])
+
+            residual = model - cube
+
+            xx = np.zeros((3*n,2))
+            for j in np.arange(2):
+                for p in np.arange(3*n):
+                    xx[p,j] = params[p,j]
+
+            bounds = self.init_bounds(cube, xx, lb_amp, ub_amp, lb_mu, ub_mu, lb_sig, ub_sig)
+                
+            xx[1+(i*3),0] = np.where(residual == np.min(residual))[0][0]   
+            xx[0+(i*3),0] = np.abs(np.min(residual)) * amp_fact_init
+            xx[2+(i*3),0] = sig_init
+
+            xx[0+(i*3),1] = xx[0+(i*3),0]
+            xx[1+(i*3),1] = xx[1+(i*3),0]
+            xx[2+(i*3),1] = xx[2+(i*3),0]
+
+            #Update both with regularization
+            result = optimize.fmin_l_bfgs_b(self.f_g, xx.ravel(), args=(n, cube, rms, lambda_Tb, lambda_tau, 
+                                                                            lambda_mu, lambda_sig), 
+                                            bounds=bounds, approx_grad=False, disp=iprint, maxiter=maxiter)
+    
+            xx = np.reshape(result[0], (3*n, cube.shape[1]))   
+
+            for j in np.arange(2):
+                for p in np.arange(3*n):
+                    params[p,j] = xx[p,j]                 
+        
+        return result
+
+
     def mean2vel(self, CRVAL, CDELT, CRPIX, mean):                                                                            
         return [(CRVAL + CDELT * (mean[i] - CRPIX)) for i in range(len(mean))]       
 
@@ -305,17 +361,17 @@ if __name__ == '__main__':
     #parameters                                                                                                                                                               
     amp_fact_init = 2./3.
     sig_init = 2.
-    iprint_init = 1
-    iprint = 1
-    maxiter_init = 200
-    maxiter = 200
+    iprint_init = -1
+    iprint = -1
+    maxiter_init = 10000
+    maxiter = 10000
     n_gauss = 18
     lambda_Tb = 1        
     lambda_tau = 1
-    lambda_mu = 0
-    lambda_sig = 0
+    lambda_mu = 1
+    lambda_sig = 1
     lb_amp = 0.
-    ub_amp = np.max(Tb)
+    ub_amp = np.max([np.max(Tb), np.max(tau)])
     lb_mu = 1
     ub_mu = len(tau)
     lb_sig = 1
@@ -324,23 +380,41 @@ if __name__ == '__main__':
     core = lbfgs_abs(Tb=Tb, tau=tau, hdr=hdr)
     # core = lbfgs_abs(Tb=Tb, tau=tau, rms_Tb=rms_Tb, rms_tau=rms_tau, hdr=hdr)
     
-    result, params_tau, params_Tb = core.run(n_gauss=n_gauss,
-                                             lb_amp=lb_amp,
-                                             ub_amp=ub_amp,
-                                             lb_mu=lb_mu,
-                                             ub_mu=ub_mu,
-                                             lb_sig=lb_sig,
-                                             ub_sig=ub_sig,
-                                             lambda_Tb=lambda_Tb,
-                                             lambda_tau=lambda_tau,
-                                             lambda_mu=lambda_mu,
-                                             lambda_sig=lambda_sig,
-                                             amp_fact_init=amp_fact_init,
-                                             sig_init=sig_init,
-                                             maxiter=maxiter,
-                                             maxiter_init=maxiter_init,
-                                             iprint=iprint,
-                                             iprint_init=iprint_init)
+    # result, params_tau, params_Tb = core.new_run(n_gauss=n_gauss,
+    #                                          lb_amp=lb_amp,
+    #                                          ub_amp=ub_amp,
+    #                                          lb_mu=lb_mu,
+    #                                          ub_mu=ub_mu,
+    #                                          lb_sig=lb_sig,
+    #                                          ub_sig=ub_sig,
+    #                                          lambda_Tb=lambda_Tb,
+    #                                          lambda_tau=lambda_tau,
+    #                                          lambda_mu=lambda_mu,
+    #                                          lambda_sig=lambda_sig,
+    #                                          amp_fact_init=amp_fact_init,
+    #                                          sig_init=sig_init,
+    #                                          maxiter=maxiter,
+    #                                          maxiter_init=maxiter_init,
+    #                                          iprint=iprint,
+    #                                          iprint_init=iprint_init)
+
+    result = core.new_run(n_gauss=n_gauss,
+                          lb_amp=lb_amp,
+                          ub_amp=ub_amp,
+                          lb_mu=lb_mu,
+                          ub_mu=ub_mu,
+                          lb_sig=lb_sig,
+                          ub_sig=ub_sig,
+                          lambda_Tb=lambda_Tb,
+                          lambda_tau=lambda_tau,
+                          lambda_mu=lambda_mu,
+                          lambda_sig=lambda_sig,
+                          amp_fact_init=amp_fact_init,
+                          sig_init=sig_init,
+                          maxiter=maxiter,
+                          maxiter_init=maxiter_init,
+                          iprint=iprint,
+                          iprint_init=iprint_init)
     
     print("J =",result[1])
 
@@ -355,9 +429,8 @@ if __name__ == '__main__':
                                params[1::3,1])
     
     model_cube = core.model(params, cube, n_gauss)
-
     
-    #Plot                                                                                                                                                                                                                                                             
+    #Plot                                                                                                                                                                   
     pvalues = np.logspace(-1, 0, n_gauss)
     pmin = pvalues[0]
     pmax = pvalues[-1]
