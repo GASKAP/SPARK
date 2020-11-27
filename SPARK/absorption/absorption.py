@@ -4,6 +4,10 @@ import sys
 import numpy as np
 from scipy import optimize 
 
+import matplotlib.pyplot as plt
+from astropy.io import fits
+import astropy.table as pytabs
+
 class lbfgs_abs(object):
     def __init__(self, Tb, tau, rms_Tb=None, rms_tau=None, hdr=None):
         """
@@ -49,6 +53,7 @@ class lbfgs_abs(object):
     
         params_Tb = self.init_spectrum(np.full((3*n_gauss_Tb),1.), n_gauss_Tb, self.Tb, lb_amp, ub_amp, lb_mu, ub_mu, lb_sig, ub_sig, 
                                   iprint_init, amp_fact_init, sig_init, maxiter_init)
+
         
         params_tau = self.init_spectrum(np.full((3*n_gauss_tau),1.), n_gauss_tau, self.tau, lb_amp, ub_amp, lb_mu, 
                                    ub_mu, lb_sig, ub_sig, iprint_init, amp_fact_init, sig_init, 
@@ -72,7 +77,7 @@ class lbfgs_abs(object):
         
         # params = np.reshape(result[0], (3*n_gauss, cube.shape[1]))   
 
-        return result
+        return result, params_tau, params_Tb
 
 
     def mean2vel(self, CRVAL, CDELT, CRPIX, mean):                                                                            
@@ -151,7 +156,7 @@ class lbfgs_abs(object):
                         
         deriv = np.sum(product, axis=1)
 
-        J =  0.5 * lambda_Tb * np.sum(F[:,0]**2) + 0.5 * lambda_tau * np.sum(F[:,1]**2)
+        J = (0.5 * lambda_Tb * np.sum(F[:,0]**2)) + (0.5 * lambda_tau * np.sum(F[:,1]**2))
 
         R_mu = 0.5 * lambda_mu * np.sum((params[1::3,1] / params[1::3,0] - 1.)**2)
         R_sig = 0.5 * lambda_sig * np.sum((params[2::3,1] / params[2::3,0] - 1.)**2)
@@ -260,4 +265,84 @@ if __name__ == '__main__':
     print("lbfgs_abs module")
     core = lbfgs_abs(np.zeros(30), np.zeros(30))
     
+    path="/mnt/raid-cita/amarchal/21SPONGE/"
+    filename = "all_sponge_sources_table_tighter.fits"
 
+    # name = '3C225A'
+    name = '3C154'
+
+    cat = fits.getdata(path+filename)       
+    data_s = pytabs.Table(cat)
+    idx_absline = np.where(data_s["NAMES"] == name)[0][0]
+    v = data_s[idx_absline]["VEL"][600:1200]
+    Tb = data_s[idx_absline]["TB"][600:1200] / 100
+    tau = data_s[idx_absline]["TAU"][600:1200]
+
+    rms_Tb= np.std(Tb[10:30]) /100
+    rms_tau = np.std(tau[10:30])
+
+    #Channel spacing
+    dv = np.diff(v)[0]
+
+    #hdr
+    hdr=fits.Header()
+    hdr["CDELT3"] = dv
+    hdr["CRPIX3"] = 0
+    hdr["CRVAL3"] = v[0]*1.e3
+    
+    #parameters                                                                                                                                                               
+    amp_fact_init = 2./3.
+    sig_init = 2.
+    iprint_init = 1
+    iprint = 1
+    maxiter_init = 400
+    maxiter = 800
+
+    n_gauss = 12
+    lambda_Tb = 1        
+    lambda_tau = 1
+    lambda_mu = 1          
+    lambda_sig = 1         
+    lb_amp = 0.
+    ub_amp = np.max(Tb)
+    lb_mu = 1
+    ub_mu = len(tau)
+    lb_sig = 1
+    ub_sig = 65
+    
+    core = lbfgs_abs(Tb=Tb, tau=tau, hdr=hdr)
+    # core = lbfgs_abs(Tb=Tb, tau=tau, rms_Tb=rms_Tb, rms_tau=rms_tau, hdr=hdr)
+    
+    result, params_tau, params_Tb = core.run(n_gauss=n_gauss,
+                                             lb_amp=lb_amp,
+                                             ub_amp=ub_amp,
+                                             lb_mu=lb_mu,
+                                             ub_mu=ub_mu,
+                                             lb_sig=lb_sig,
+                                             ub_sig=ub_sig,
+                                             lambda_Tb=lambda_Tb,
+                                             lambda_tau=lambda_tau,
+                                             lambda_mu=lambda_mu,
+                                             lambda_sig=lambda_sig,
+                                             amp_fact_init=amp_fact_init,
+                                             sig_init=sig_init,
+                                             maxiter=maxiter,
+                                             maxiter_init=maxiter_init,
+                                             iprint=iprint,
+                                             iprint_init=iprint_init)
+    
+    print("J =",result[1])
+
+    stop
+    
+    #Compute model                                                                                                                                                            
+    cube = np.moveaxis(np.array([Tb,tau]),0,1)
+    params = np.reshape(result[0], (3*n_gauss, cube.shape[1]))
+    vfield_Tb = core.mean2vel(hdr["CRVAL3"]*1.e-3, hdr["CDELT3"], hdr["CRPIX3"], 
+                              params[1::3,0])
+    vfield_tau = core.mean2vel(hdr["CRVAL3"]*1.e-3, hdr["CDELT3"], hdr["CRPIX3"], 
+                               params[1::3,1])
+    
+    model_cube = core.model(params, cube, n_gauss)
+
+    
