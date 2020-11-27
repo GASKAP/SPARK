@@ -266,20 +266,32 @@ if __name__ == '__main__':
     core = lbfgs_abs(np.zeros(30), np.zeros(30))
     
     path="/mnt/raid-cita/amarchal/21SPONGE/"
-    filename = "all_sponge_sources_table_tighter.fits"
+    # filename = "all_sponge_sources_table_tighter.fits"
+    filename = "sponge_pepsi_challenge_results.fits"
 
-    # name = '3C225A'
-    name = '3C154'
+    name = '3C225A'
+    # name = '3C154'
 
     cat = fits.getdata(path+filename)       
     data_s = pytabs.Table(cat)
     idx_absline = np.where(data_s["NAMES"] == name)[0][0]
-    v = data_s[idx_absline]["VEL"][600:1200]
-    Tb = data_s[idx_absline]["TB"][600:1200] / 100
-    tau = data_s[idx_absline]["TAU"][600:1200]
 
-    rms_Tb= np.std(Tb[10:30]) /100
-    rms_tau = np.std(tau[10:30])
+    # v = data_s[idx_absline]["VEL"][600:1200]
+    # Tb = data_s[idx_absline]["TB"][600:1200] / 100
+    # tau = data_s[idx_absline]["TAU"][600:1200]
+    # rms_Tb= np.std(Tb[10:30]) /100
+    # rms_tau = np.std(tau[10:30])
+    v = data_s[idx_absline]["VEL"]
+
+    rms_Tb= np.std(data_s[idx_absline]["TB"][370:400])
+    rms_tau = np.std(data_s[idx_absline]["TAU"][50:80])
+
+    Tb = data_s[idx_absline]["TB"] / np.nansum(data_s[idx_absline]["TB"]) * 100#(1. / rms_Tb)
+    tau = data_s[idx_absline]["TAU"] / np.nansum(data_s[idx_absline]["TAU"]) * 100#(1. / rms_tau)
+
+    # Tb = Tb[600:1200]
+    # tau = tau[600:1200]
+    # v = v[600:1200]
 
     #Channel spacing
     dv = np.diff(v)[0]
@@ -295,20 +307,19 @@ if __name__ == '__main__':
     sig_init = 2.
     iprint_init = 1
     iprint = 1
-    maxiter_init = 400
-    maxiter = 800
-
-    n_gauss = 12
+    maxiter_init = 200
+    maxiter = 200
+    n_gauss = 18
     lambda_Tb = 1        
     lambda_tau = 1
-    lambda_mu = 1          
-    lambda_sig = 1         
+    lambda_mu = 0
+    lambda_sig = 0
     lb_amp = 0.
     ub_amp = np.max(Tb)
     lb_mu = 1
     ub_mu = len(tau)
     lb_sig = 1
-    ub_sig = 65
+    ub_sig = 30
     
     core = lbfgs_abs(Tb=Tb, tau=tau, hdr=hdr)
     # core = lbfgs_abs(Tb=Tb, tau=tau, rms_Tb=rms_Tb, rms_tau=rms_tau, hdr=hdr)
@@ -346,3 +357,30 @@ if __name__ == '__main__':
     model_cube = core.model(params, cube, n_gauss)
 
     
+    #Plot                                                                                                                                                                                                                                                             
+    pvalues = np.logspace(-1, 0, n_gauss)
+    pmin = pvalues[0]
+    pmax = pvalues[-1]
+    
+    def norm(pval):
+        return (pval - pmin) / float(pmax - pmin)
+
+    fig, [ax1, ax2] = plt.subplots(2, 1, sharex=True, figsize=(20,16))
+    fig.subplots_adjust(hspace=0.)
+    x = np.arange(cube.shape[0])
+    ax1.step(v, cube[:,0], color='cornflowerblue', linewidth=2.)
+    ax1.plot(v, model_cube[:,0], color='k')
+    ax2.step(v, -cube[:,1], color='cornflowerblue', linewidth=2.)
+    ax2.plot(v, -model_cube[:,1], color='k')
+    for i in np.arange(cube.shape[1]):
+        for k in np.arange(n_gauss):
+            line = core.gaussian(x, params[0+(k*3),i], params[1+(k*3),i], 
+                                 params[2+(k*3),i])
+            if i == 1:
+                ax2.plot(v, -line, color=plt.cm.viridis(pvalues[k]), linewidth=2.)
+            else:
+                ax1.plot(v, line, color=plt.cm.viridis(pvalues[k]), linewidth=2.)
+
+    ax1.set_ylabel(r'T$_{B}$ [K]', fontsize=16)
+    ax2.set_ylabel(r'$- \tau$', fontsize=16)
+    ax2.set_xlabel(r'v [km s$^{-1}$]', fontsize=16)
