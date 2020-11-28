@@ -52,12 +52,12 @@ class lbfgs_abs(object):
         n_gauss_tau = int(n_gauss / 3)
     
         params_Tb = self.init_spectrum(np.full((3*n_gauss_Tb),1.), n_gauss_Tb, self.Tb, lb_amp, ub_amp, lb_mu, ub_mu, lb_sig, ub_sig, 
-                                  iprint_init, amp_fact_init, sig_init, maxiter_init)
+                                  iprint_init, amp_fact_init, sig_init, maxiter_init, rms[0])
 
         
         params_tau = self.init_spectrum(np.full((3*n_gauss_tau),1.), n_gauss_tau, self.tau, lb_amp, ub_amp, lb_mu, 
                                    ub_mu, lb_sig, ub_sig, iprint_init, amp_fact_init, sig_init, 
-                                   maxiter_init)
+                                   maxiter_init, rms[1])
          
         #Allocate and init arrays
         cube = np.moveaxis(np.array([self.Tb,self.tau]),0,1)
@@ -106,6 +106,14 @@ class lbfgs_abs(object):
                     model[:,j] += self.gaussian(x, params[0+(k*3),j], params[1+(k*3),j], params[2+(k*3),j])
 
             residual = model - cube
+
+            F = np.zeros(model.shape)
+            F[:,0] = residual[:,0] / rms[0]
+            F[:,1] = residual[:,1] / rms[1]
+            
+            chi2 = np.sum(F**2)
+            rchi2 = chi2 / (dim_v * 2)
+            print(rms, rchi2)
 
             xx = np.zeros((3*n,2))
             for j in np.arange(2):
@@ -199,8 +207,8 @@ class lbfgs_abs(object):
 
         F = model - data   
         
-        F[:,0] /= rms[0]
-        F[:,1] /= rms[1]
+        # F[:,0] /= rms[0] ATTENTION
+        # F[:,1] /= rms[1]
         
         for i in np.arange(data.shape[1]):
             for v in np.arange(data.shape[0]):
@@ -263,7 +271,7 @@ class lbfgs_abs(object):
 
 
     def init_spectrum(self, params, n_gauss, data, lb_amp, ub_amp, lb_mu, ub_mu, lb_sig, ub_sig, 
-                      iprint, amp_fact_init, sig_init, maxiter):
+                      iprint, amp_fact_init, sig_init, maxiter, rms):
         for i in np.arange(n_gauss):
             n = i+1
             x = np.arange(data.shape[0])
@@ -274,6 +282,13 @@ class lbfgs_abs(object):
                 model += self.gaussian(x, params[0+(k*3)], params[1+(k*3)], params[2+(k*3)])
 
             residual = model - data
+
+            F = np.zeros(model.shape)
+            F = residual / rms
+            
+            chi2 = np.sum(F**2)
+            rchi2 = chi2 / (len(model))
+            print(rms, rchi2)
 
             xx = np.zeros((3*n,1))
             for p in np.arange(3*n):
@@ -322,28 +337,26 @@ if __name__ == '__main__':
     core = lbfgs_abs(np.zeros(30), np.zeros(30))
     
     path="/mnt/raid-cita/amarchal/21SPONGE/"
-    # filename = "all_sponge_sources_table_tighter.fits"
-    filename = "sponge_pepsi_challenge_results.fits"
+    filename = "all_sponge_sources_table_tighter.fits"
+    # filename = "sponge_pepsi_challenge_results.fits"
 
-    name = '3C225A'
-    # name = '3C154'
+    # name = '3C225A'
+    name = '3C138'
 
     cat = fits.getdata(path+filename)       
     data_s = pytabs.Table(cat)
     idx_absline = np.where(data_s["NAMES"] == name)[0][0]
 
-    # v = data_s[idx_absline]["VEL"][600:1200]
-    # Tb = data_s[idx_absline]["TB"][600:1200] / 100
-    # tau = data_s[idx_absline]["TAU"][600:1200]
-    # rms_Tb= np.std(Tb[10:30]) /100
-    # rms_tau = np.std(tau[10:30])
-    v = data_s[idx_absline]["VEL"]
+    # v = data_s[idx_absline]["VEL"]
+    # Tb = data_s[idx_absline]["TB"] / np.nansum(data_s[idx_absline]["TB"]) * 100#(1. / rms_Tb)
+    # tau = data_s[idx_absline]["TAU"] / np.nansum(data_s[idx_absline]["TAU"]) * 100#(1. / rms_tau)
 
-    rms_Tb= np.std(data_s[idx_absline]["TB"][370:400])
-    rms_tau = np.std(data_s[idx_absline]["TAU"][50:80])
+    v = data_s[idx_absline]["VEL"][600:1200]
+    Tb = data_s[idx_absline]["TB"][600:1200] / np.nansum(data_s[idx_absline]["TB"][600:1200]) * 100
+    tau = data_s[idx_absline]["TAU"][600:1200] / np.nansum(data_s[idx_absline]["TAU"][600:1200]) * 100
 
-    Tb = data_s[idx_absline]["TB"] / np.nansum(data_s[idx_absline]["TB"]) * 100#(1. / rms_Tb)
-    tau = data_s[idx_absline]["TAU"] / np.nansum(data_s[idx_absline]["TAU"]) * 100#(1. / rms_tau)
+    rms_Tb= np.std(Tb[370:400])
+    rms_tau = np.std(tau[50:80])
 
     # Tb = Tb[600:1200]
     # tau = tau[600:1200]
@@ -363,8 +376,8 @@ if __name__ == '__main__':
     sig_init = 2.
     iprint_init = -1
     iprint = -1
-    maxiter_init = 10000
-    maxiter = 10000
+    maxiter_init = 800
+    maxiter = 800
     n_gauss = 18
     lambda_Tb = 1        
     lambda_tau = 1
@@ -377,10 +390,10 @@ if __name__ == '__main__':
     lb_sig = 1
     ub_sig = 30
     
-    core = lbfgs_abs(Tb=Tb, tau=tau, hdr=hdr)
-    # core = lbfgs_abs(Tb=Tb, tau=tau, rms_Tb=rms_Tb, rms_tau=rms_tau, hdr=hdr)
+    # core = lbfgs_abs(Tb=Tb, tau=tau, hdr=hdr)
+    core = lbfgs_abs(Tb=Tb, tau=tau, rms_Tb=rms_Tb, rms_tau=rms_tau, hdr=hdr)
     
-    # result, params_tau, params_Tb = core.new_run(n_gauss=n_gauss,
+    # result, params_tau, params_Tb = core.run(n_gauss=n_gauss,
     #                                          lb_amp=lb_amp,
     #                                          ub_amp=ub_amp,
     #                                          lb_mu=lb_mu,
@@ -416,7 +429,7 @@ if __name__ == '__main__':
                           iprint=iprint,
                           iprint_init=iprint_init)
     
-    print("J =",result[1])
+    print("J =", result[1])
 
     stop
     
