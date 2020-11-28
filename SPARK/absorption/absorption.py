@@ -341,7 +341,8 @@ if __name__ == '__main__':
     # filename = "sponge_pepsi_challenge_results.fits"
 
     # name = '3C225A'
-    name = '3C138'
+    # name = '3C138'
+    name = '3C286'
 
     cat = fits.getdata(path+filename)       
     data_s = pytabs.Table(cat)
@@ -357,10 +358,6 @@ if __name__ == '__main__':
 
     rms_Tb= np.std(Tb[370:400])
     rms_tau = np.std(tau[50:80])
-
-    # Tb = Tb[600:1200]
-    # tau = tau[600:1200]
-    # v = v[600:1200]
 
     #Channel spacing
     dv = np.diff(v)[0]
@@ -378,7 +375,7 @@ if __name__ == '__main__':
     iprint = -1
     maxiter_init = 800
     maxiter = 800
-    n_gauss = 18
+    n_gauss = 8
     lambda_Tb = 1        
     lambda_tau = 1
     lambda_mu = 1
