@@ -355,7 +355,8 @@ if __name__ == '__main__':
     # filename = "sponge_pepsi_challenge_results.fits"
 
     # name = '3C225A'
-    name = '3C138'
+    # name = '3C138'
+    name = '3C154'
     # name = '3C286'
     # name="UGC09799"
 
@@ -380,12 +381,12 @@ if __name__ == '__main__':
     # rms_Tb *= (1./rms_Tb)
     # rms_tau *= (1./rms_tau)
 
-    rms_Tb= np.std(Tb[370:400])
-    rms_tau = np.std(tau[50:80])
+    # rms_Tb= np.std(Tb[370:400])
+    # rms_tau = np.std(tau[50:80])
     # rms_Tb= np.nanstd(Tb[200:300])
     # rms_tau = np.nanstd(tau[200:300])
-    # rms_Tb= np.nanstd(Tb[:100])
-    # rms_tau = np.nanstd(tau[:100])
+    rms_Tb= np.nanstd(Tb[:50])
+    rms_tau = np.nanstd(tau[:50])
 
     #Channel spacing
     dv = np.diff(v)[0]

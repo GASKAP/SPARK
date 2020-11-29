@@ -116,6 +116,8 @@ class synth(object):
 
 
 if __name__ == '__main__':    
+    from SPARK.absorption import lbfgs_abs   
+
     # Open data 
     path = '/home/amarchal/SPARK/data/'
     
@@ -126,12 +128,102 @@ if __name__ == '__main__':
     #Velocity range and channel spacing
     vmin = -40 #km.s-1
     vmax = 40 #km.s-1
-    dv = 0.8 #km.s-1
+    dv = 0.5 #km.s-1
     
-    rho_cube = hdu_list_rho[0].data[:,0,0] #g.cm-3
-    T_cube = hdu_list_T[0].data[:,0,0] #K
-    vz_cube = hdu_list_vz[0].data[:,0,0] #cm.s-1
+    rho_cube = hdu_list_rho[0].data #g.cm-3
+    T_cube = hdu_list_T[0].data #K
+    vz_cube = hdu_list_vz[0].data #cm.s-1
 
-    core = synth(rho=rho_cube, T=T_cube, vz=vz_cube, dz=40/1024)
-    cube, tau = core.gen(vmin=-40, vmax=40, dv=0.8, thin=False)
-    cube_thin, tau_thin = core.gen(vmin=-40, vmax=40, dv=0.8, thin=True)
+    dz=40/1024 #pc     
+
+    core = synth(rho=rho_cube, T=T_cube, vz=vz_cube, dz=dz)
+    # cube, tau = core.gen(vmin=-40, vmax=40, dv=0.8, thin=False)
+    cube_thin, tau_thin = core.gen(vmin=-40, vmax=40, dv=dv, thin=True)
+
+    #Add noise in the synthetic cube
+    noise = 0.05
+    # for i in range(cube_thin.shape[1]):
+    #     for j in range(cube_thin.shape[2]):
+            # cube_thin[:,i,j] += np.random.randn(cube_thin.shape[0]) * noise
+            # tau_thin[:,i,j] += np.random.randn(tau_thin.shape[0]) * noise
+
+    #Try SPARK
+    Tb = cube_thin[:,16,16] / np.sum(cube_thin[:,16,16]) * 100 + (np.random.randn(len(cube_thin[:,16,16])) * noise)
+    tau_s = tau_thin[:,16,16] / np.sum(tau_thin[:,16,16]) * 100 + (np.random.randn(len(tau_thin[:,16,16])) * noise)
+
+    core = lbfgs_abs(Tb=Tb, tau=tau_s, rms_Tb=noise, rms_tau=noise) 
+    
+    amp_fact_init = 2./3.
+    sig_init = 2*dv
+    iprint_init = -1
+    iprint = -1
+    maxiter_init = 800
+    maxiter = 800
+    n_gauss = 6
+    lambda_Tb = 1
+    lambda_tau = 1
+    lambda_mu = 1
+    lambda_sig = 1
+    lb_amp = 0.
+    ub_amp = np.max([np.max(Tb), np.max(tau_s)])
+    lb_mu = 1
+    ub_mu = len(tau_s)
+    lb_sig = 1
+    ub_sig = int(10/dv)
+    rchi2_limit = 1
+
+    result = core.new_run(n_gauss=n_gauss,
+                          lb_amp=lb_amp,
+                          ub_amp=ub_amp,
+                          lb_mu=lb_mu,
+                          ub_mu=ub_mu,
+                          lb_sig=lb_sig,
+                          ub_sig=ub_sig,
+                          lambda_Tb=lambda_Tb,
+                          lambda_tau=lambda_tau,
+                          lambda_mu=lambda_mu,
+                          lambda_sig=lambda_sig,
+                          amp_fact_init=amp_fact_init,
+                          sig_init=sig_init,
+                          maxiter=maxiter,
+                          maxiter_init=maxiter_init,
+                          iprint=iprint,
+                          iprint_init=iprint_init,
+                          rchi2_limit=rchi2_limit)
+
+    #Compute model              
+    v = np.arange(vmin,vmax+dv, dv)
+    res = result[-1]
+    n_gauss_out = int(np.array(res[0]).shape[0] / 2 / 3)
+    cube = np.moveaxis(np.array([Tb,tau_s]),0,1)
+    params = np.reshape(res[0], (3*n_gauss_out, cube.shape[1]))    
+    model_cube = core.model(params, cube, n_gauss_out)
+    
+    #Plot                                                                        
+    pvalues = np.logspace(-1, 0, n_gauss_out)
+    pmin = pvalues[0]
+    pmax = pvalues[-1]
+    
+    def norm(pval):
+        return (pval - pmin) / float(pmax - pmin)
+
+    fig, [ax1, ax2] = plt.subplots(2, 1, sharex=True, figsize=(20,16))
+    fig.subplots_adjust(hspace=0.)
+    x = np.arange(cube.shape[0])
+    ax1.step(v, cube[:,0], color='cornflowerblue', linewidth=2.)
+    ax1.plot(v, model_cube[:,0], color='k')
+    ax2.step(v, -cube[:,1], color='cornflowerblue', linewidth=2.)
+    ax2.plot(v, -model_cube[:,1], color='k')
+    for i in np.arange(cube.shape[1]):
+        for k in np.arange(n_gauss_out):
+            line = core.gaussian(x, params[0+(k*3),i], params[1+(k*3),i], 
+                                 params[2+(k*3),i])
+            if i == 1:
+                if 
+                ax2.plot(v, -line, color=plt.cm.viridis(pvalues[k]), linewidth=2.)
+            else:
+                ax1.plot(v, line, color=plt.cm.viridis(pvalues[k]), linewidth=2.)
+
+    ax1.set_ylabel(r'T$_{B}$ [K]', fontsize=16)
+    ax2.set_ylabel(r'$- \tau$', fontsize=16)
+    ax2.set_xlabel(r'v [km s$^{-1}$]', fontsize=16)
