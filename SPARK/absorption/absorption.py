@@ -82,7 +82,7 @@ class lbfgs_abs(object):
 
     def new_run(self, n_gauss=18, lb_amp=0, ub_amp=100, lb_mu=1, ub_mu=500, lb_sig=1, ub_sig=100, lambda_Tb=1, 
             lambda_tau=1, lambda_mu=100, lambda_sig=100, iprint_init=1, amp_fact_init=0.666, sig_init=2., 
-            maxiter=15000, maxiter_init=15000, iprint=1):
+            maxiter=15000, maxiter_init=15000, iprint=1, rchi2_limit=1):
     
         #Dimensions
         dim_v = len(self.Tb)
@@ -94,7 +94,9 @@ class lbfgs_abs(object):
         x = np.arange(dim_v)
 
         params = np.full((3*n_gauss,2),0.)
-        params[2::3] = 1
+        params[2::3] = 1        
+
+        list_result = []
 
         for i in np.arange(n_gauss):
             #Allocate and init arrays            
@@ -111,9 +113,15 @@ class lbfgs_abs(object):
             F[:,0] = residual[:,0] / rms[0]
             F[:,1] = residual[:,1] / rms[1]
             
-            chi2 = np.sum(F**2)
+            F2 = F**2
+
+            chi2 = np.sum(F2)
             rchi2 = chi2 / (dim_v * 2)
             print(rms, rchi2)
+
+            if rchi2 < rchi2_limit: 
+                print("rchi2 < ", rchi2_limit)
+                break
 
             xx = np.zeros((3*n,2))
             for j in np.arange(2):
@@ -125,6 +133,10 @@ class lbfgs_abs(object):
             xx[1+(i*3),0] = np.where(residual == np.min(residual))[0][0]   
             xx[0+(i*3),0] = np.abs(np.min(residual)) * amp_fact_init
             xx[2+(i*3),0] = sig_init
+
+            # xx[1+(i*3),0] = np.where(F2 == np.max(F2))[0][0]   
+            # xx[0+(i*3),0] = np.abs(np.min(residual)) * amp_fact_init
+            # xx[2+(i*3),0] = sig_init
 
             xx[0+(i*3),1] = xx[0+(i*3),0]
             xx[1+(i*3),1] = xx[1+(i*3),0]
@@ -140,8 +152,10 @@ class lbfgs_abs(object):
             for j in np.arange(2):
                 for p in np.arange(3*n):
                     params[p,j] = xx[p,j]                 
+
+            list_result.append(result)
         
-        return result
+        return list_result
 
 
     def mean2vel(self, CRVAL, CDELT, CRPIX, mean):                                                                            
@@ -207,7 +221,7 @@ class lbfgs_abs(object):
 
         F = model - data   
         
-        # F[:,0] /= rms[0] ATTENTION
+        # F[:,0] /= rms[0] #ATTENTION
         # F[:,1] /= rms[1]
         
         for i in np.arange(data.shape[1]):
@@ -334,30 +348,44 @@ class lbfgs_abs(object):
 
 if __name__ == '__main__':    
     print("lbfgs_abs module")
-    core = lbfgs_abs(np.zeros(30), np.zeros(30))
+    # core = lbfgs_abs(np.zeros(30), np.zeros(30))
     
     path="/mnt/raid-cita/amarchal/21SPONGE/"
     filename = "all_sponge_sources_table_tighter.fits"
     # filename = "sponge_pepsi_challenge_results.fits"
 
     # name = '3C225A'
-    # name = '3C138'
-    name = '3C286'
+    name = '3C138'
+    # name = '3C286'
+    # name="UGC09799"
 
     cat = fits.getdata(path+filename)       
     data_s = pytabs.Table(cat)
     idx_absline = np.where(data_s["NAMES"] == name)[0][0]
 
     # v = data_s[idx_absline]["VEL"]
-    # Tb = data_s[idx_absline]["TB"] / np.nansum(data_s[idx_absline]["TB"]) * 100#(1. / rms_Tb)
-    # tau = data_s[idx_absline]["TAU"] / np.nansum(data_s[idx_absline]["TAU"]) * 100#(1. / rms_tau)
+    # Tb = data_s[idx_absline]["TB"] / np.nansum(data_s[idx_absline]["TB"]) * 100
+    # tau = data_s[idx_absline]["TAU"] / np.nansum(data_s[idx_absline]["TAU"]) * 100
 
     v = data_s[idx_absline]["VEL"][600:1200]
     Tb = data_s[idx_absline]["TB"][600:1200] / np.nansum(data_s[idx_absline]["TB"][600:1200]) * 100
     tau = data_s[idx_absline]["TAU"][600:1200] / np.nansum(data_s[idx_absline]["TAU"][600:1200]) * 100
 
+    # rms_Tb= np.std(data_s[idx_absline]["TB"][600:1200][370:400])
+    # rms_tau = np.std(data_s[idx_absline]["TAU"][600:1200][50:80])
+    # v = data_s[idx_absline]["VEL"][600:1200]
+    # Tb = data_s[idx_absline]["TB"][600:1200] * (1./rms_Tb)
+    # tau = data_s[idx_absline]["TAU"][600:1200] * (1./rms_tau)
+
+    # rms_Tb *= (1./rms_Tb)
+    # rms_tau *= (1./rms_tau)
+
     rms_Tb= np.std(Tb[370:400])
     rms_tau = np.std(tau[50:80])
+    # rms_Tb= np.nanstd(Tb[200:300])
+    # rms_tau = np.nanstd(tau[200:300])
+    # rms_Tb= np.nanstd(Tb[:100])
+    # rms_tau = np.nanstd(tau[:100])
 
     #Channel spacing
     dv = np.diff(v)[0]
@@ -370,13 +398,13 @@ if __name__ == '__main__':
     
     #parameters                                                                                                                                                               
     amp_fact_init = 2./3.
-    sig_init = 2.
+    sig_init = 5.
     iprint_init = -1
     iprint = -1
     maxiter_init = 800
     maxiter = 800
-    n_gauss = 8
-    lambda_Tb = 1        
+    n_gauss = 20
+    lambda_Tb = 1
     lambda_tau = 1
     lambda_mu = 1
     lambda_sig = 1
@@ -384,8 +412,9 @@ if __name__ == '__main__':
     ub_amp = np.max([np.max(Tb), np.max(tau)])
     lb_mu = 1
     ub_mu = len(tau)
-    lb_sig = 1
-    ub_sig = 30
+    lb_sig = 2
+    ub_sig = 62
+    rchi2_limit = 1
     
     # core = lbfgs_abs(Tb=Tb, tau=tau, hdr=hdr)
     core = lbfgs_abs(Tb=Tb, tau=tau, rms_Tb=rms_Tb, rms_tau=rms_tau, hdr=hdr)
@@ -424,24 +453,27 @@ if __name__ == '__main__':
                           maxiter=maxiter,
                           maxiter_init=maxiter_init,
                           iprint=iprint,
-                          iprint_init=iprint_init)
+                          iprint_init=iprint_init,
+                          rchi2_limit=rchi2_limit)
     
     print("J =", result[1])
 
     stop
-    
-    #Compute model                                                                                                                                                            
+
+    #Compute model              
+    res = result[-1]
+    n_gauss_out = int(np.array(res[0]).shape[0] / 2 / 3)
     cube = np.moveaxis(np.array([Tb,tau]),0,1)
-    params = np.reshape(result[0], (3*n_gauss, cube.shape[1]))
+    params = np.reshape(res[0], (3*n_gauss_out, cube.shape[1]))
     vfield_Tb = core.mean2vel(hdr["CRVAL3"]*1.e-3, hdr["CDELT3"], hdr["CRPIX3"], 
                               params[1::3,0])
     vfield_tau = core.mean2vel(hdr["CRVAL3"]*1.e-3, hdr["CDELT3"], hdr["CRPIX3"], 
                                params[1::3,1])
     
-    model_cube = core.model(params, cube, n_gauss)
+    model_cube = core.model(params, cube, n_gauss_out)
     
     #Plot                                                                                                                                                                   
-    pvalues = np.logspace(-1, 0, n_gauss)
+    pvalues = np.logspace(-1, 0, n_gauss_out)
     pmin = pvalues[0]
     pmax = pvalues[-1]
     
@@ -456,7 +488,7 @@ if __name__ == '__main__':
     ax2.step(v, -cube[:,1], color='cornflowerblue', linewidth=2.)
     ax2.plot(v, -model_cube[:,1], color='k')
     for i in np.arange(cube.shape[1]):
-        for k in np.arange(n_gauss):
+        for k in np.arange(n_gauss_out):
             line = core.gaussian(x, params[0+(k*3),i], params[1+(k*3),i], 
                                  params[2+(k*3),i])
             if i == 1:
@@ -467,3 +499,48 @@ if __name__ == '__main__':
     ax1.set_ylabel(r'T$_{B}$ [K]', fontsize=16)
     ax2.set_ylabel(r'$- \tau$', fontsize=16)
     ax2.set_xlabel(r'v [km s$^{-1}$]', fontsize=16)
+
+    #Save plots
+    for res in result:
+        n_gauss_out = int(np.array(res[0]).shape[0] / 2 / 3)
+        cube = np.moveaxis(np.array([Tb,tau]),0,1)
+        params = np.reshape(res[0], (3*n_gauss_out, cube.shape[1]))
+        vfield_Tb = core.mean2vel(hdr["CRVAL3"]*1.e-3, hdr["CDELT3"], hdr["CRPIX3"], 
+                                  params[1::3,0])
+        vfield_tau = core.mean2vel(hdr["CRVAL3"]*1.e-3, hdr["CDELT3"], hdr["CRPIX3"], 
+                                   params[1::3,1])
+    
+        model_cube = core.model(params, cube, n_gauss_out)
+    
+        #Plot                                                                                                                                                                   
+        pvalues = np.logspace(-1, 0, n_gauss_out)
+        pmin = pvalues[0]
+        pmax = pvalues[-1]
+        
+        def norm(pval):
+            return (pval - pmin) / float(pmax - pmin)
+
+        fig, [ax1, ax2] = plt.subplots(2, 1, sharex=True, figsize=(20,16))
+        fig.subplots_adjust(hspace=0.)
+        x = np.arange(cube.shape[0])
+        ax1.step(v, cube[:,0], color='cornflowerblue', linewidth=3.)
+        ax1.plot(v, model_cube[:,0], color='k', label="$N={}$".format(n_gauss_out))
+        ax2.step(v, -cube[:,1], color='cornflowerblue', linewidth=3.)
+        ax2.plot(v, -model_cube[:,1], color='k')
+        for i in np.arange(cube.shape[1]):
+            for k in np.arange(n_gauss_out):
+                line = core.gaussian(x, params[0+(k*3),i], params[1+(k*3),i], 
+                                     params[2+(k*3),i])
+                if i == 1:
+                    ax2.plot(v, -line, color=plt.cm.viridis(pvalues[k]), linewidth=3.)
+                else:
+                    ax1.plot(v, line, color=plt.cm.viridis(pvalues[k]), linewidth=3.)
+        ax1.set_ylabel(r'T$_{B}$ [K]', fontsize=16)
+        ax2.set_ylabel(r'$- \tau$', fontsize=16)
+        ax2.set_xlabel(r'v [km s$^{-1}$]', fontsize=16)
+        # plt.legend(loc = 1, numpoints = 1)
+        # leg = plt.gca().get_legend()
+        # ltext  = leg.get_texts()
+        # plt.setp(ltext, fontsize = 'small')
+        plt.savefig("plot/result_spectra_{}.png".format(n_gauss_out), format='png', bbox_inches='tight', 
+            pad_inches=0.02)        
