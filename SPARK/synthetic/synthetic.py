@@ -140,6 +140,9 @@ if __name__ == '__main__':
     # cube, tau = core.gen(vmin=-40, vmax=40, dv=0.8, thin=False)
     cube_thin, tau_thin = core.gen(vmin=-40, vmax=40, dv=dv, thin=True)
 
+
+    stop
+
     #Add noise in the synthetic cube
     noise = 0.05
     # for i in range(cube_thin.shape[1]):
@@ -199,31 +202,31 @@ if __name__ == '__main__':
     params = np.reshape(res[0], (3*n_gauss_out, cube.shape[1]))    
     model_cube = core.model(params, cube, n_gauss_out)
     
-    #Plot                                                                        
-    pvalues = np.logspace(-1, 0, n_gauss_out)
-    pmin = pvalues[0]
-    pmax = pvalues[-1]
+    # #Plot                                                                        
+    # pvalues = np.logspace(-1, 0, n_gauss_out)
+    # pmin = pvalues[0]
+    # pmax = pvalues[-1]
     
-    def norm(pval):
-        return (pval - pmin) / float(pmax - pmin)
+    # def norm(pval):
+    #     return (pval - pmin) / float(pmax - pmin)
 
-    fig, [ax1, ax2] = plt.subplots(2, 1, sharex=True, figsize=(20,16))
-    fig.subplots_adjust(hspace=0.)
-    x = np.arange(cube.shape[0])
-    ax1.step(v, cube[:,0], color='cornflowerblue', linewidth=2.)
-    ax1.plot(v, model_cube[:,0], color='k')
-    ax2.step(v, -cube[:,1], color='cornflowerblue', linewidth=2.)
-    ax2.plot(v, -model_cube[:,1], color='k')
-    for i in np.arange(cube.shape[1]):
-        for k in np.arange(n_gauss_out):
-            line = core.gaussian(x, params[0+(k*3),i], params[1+(k*3),i], 
-                                 params[2+(k*3),i])
-            if i == 1:
-                if 
-                ax2.plot(v, -line, color=plt.cm.viridis(pvalues[k]), linewidth=2.)
-            else:
-                ax1.plot(v, line, color=plt.cm.viridis(pvalues[k]), linewidth=2.)
+    # fig, [ax1, ax2] = plt.subplots(2, 1, sharex=True, figsize=(20,16))
+    # fig.subplots_adjust(hspace=0.)
+    # x = np.arange(cube.shape[0])
+    # ax1.step(v, cube[:,0], color='cornflowerblue', linewidth=2.)
+    # ax1.plot(v, model_cube[:,0], color='k')
+    # ax2.step(v, -cube[:,1], color='cornflowerblue', linewidth=2.)
+    # ax2.plot(v, -model_cube[:,1], color='k')
+    # for i in np.arange(cube.shape[1]):
+    #     for k in np.arange(n_gauss_out):
+    #         line = core.gaussian(x, params[0+(k*3),i], params[1+(k*3),i], 
+    #                              params[2+(k*3),i])
+    #         if i == 1:
+    #             if 
+    #             ax2.plot(v, -line, color=plt.cm.viridis(pvalues[k]), linewidth=2.)
+    #         else:
+    #             ax1.plot(v, line, color=plt.cm.viridis(pvalues[k]), linewidth=2.)
 
-    ax1.set_ylabel(r'T$_{B}$ [K]', fontsize=16)
-    ax2.set_ylabel(r'$- \tau$', fontsize=16)
-    ax2.set_xlabel(r'v [km s$^{-1}$]', fontsize=16)
+    # ax1.set_ylabel(r'T$_{B}$ [K]', fontsize=16)
+    # ax2.set_ylabel(r'$- \tau$', fontsize=16)
+    # ax2.set_xlabel(r'v [km s$^{-1}$]', fontsize=16)
