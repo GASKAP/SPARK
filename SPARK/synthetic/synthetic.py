@@ -46,12 +46,16 @@ class synth(object):
         self.dz_cm = self.dz.to(u.cm)
 
 
-    def gen(self, vmin=-40, vmax=40, dv=0.8, T_lim=[0,np.inf], thin=False):        
-        # Cut temperature field 
+    def gen(self, vmin=-40, vmax=40, dv=0.8, T_lim=[0,np.inf], n_lim=[0,np.inf], thin=False):        
+        # Cut temperature field or/and density field
         Tk_lim_inf = T_lim[0]
         Tk_lim_sup = T_lim[1]
 
-        idx_phase = np.where((self.T.value > Tk_lim_inf) & (self.T.value < Tk_lim_sup))
+        rho_lim_inf = n_lim[0] * (self.m_h.value*1.e3)
+        rho_lim_sup = n_lim[1] * (self.m_h.value*1.e3)
+
+        idx_phase = np.where((self.T.value > Tk_lim_inf) & (self.T.value < Tk_lim_sup) &
+                             (self.rho.value > rho_lim_inf) & (self.rho.value < rho_lim_sup))
         
         rho_cube_phase = np.zeros((self.rho.value.shape[0], self.rho.value.shape[1], self.rho.value.shape[2]))
         T_cube_phase = np.zeros((self.rho.value.shape[0], self.rho.value.shape[1], self.rho.value.shape[2]))
@@ -140,6 +144,9 @@ if __name__ == '__main__':
     # cube, tau = core.gen(vmin=-40, vmax=40, dv=0.8, thin=False)
     cube_thin, tau_thin = core.gen(vmin=-40, vmax=40, dv=dv, thin=True)
 
+    cube_CNM, tau_CNM = core.gen(vmin=vmin, vmax=vmax, dv=dv, T_lim=[0,500], n_lim=[50,np.inf], thin=True)
+    cube_CNM1, tau_CNM = core.gen(vmin=vmin, vmax=vmax, dv=dv, n_lim=[0,50], thin=True)
+    cube_CNM2, tau_CNM = core.gen(vmin=vmin, vmax=vmax, dv=dv, n_lim=[50,np.inf], thin=True)
 
     stop
 
