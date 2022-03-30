@@ -397,7 +397,7 @@ if __name__ == '__main__':
     hdr["CRPIX3"] = 0
     hdr["CRVAL3"] = v[0]*1.e3
     
-    #parameters                                                                                                                                                               
+    #parameters                                                                                                                      
     amp_fact_init = 2./3.
     sig_init = 5.
     iprint_init = -1

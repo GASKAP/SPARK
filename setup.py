@@ -1,17 +1,17 @@
-# -*- coding: utf-8 -*-                                                                                                                                                                                                                                              
+# -*- coding: utf-8 -*-
 from setuptools import setup, find_packages
 
-# with open("/home/amarchal/GASKAP/Readme.md") as f:
-#         readme = f.read()
-	
-# with open("/home/amarchal/GASKAP/LICENSE") as f:
-# 	license = f.read()
+with open('README.md') as f:
+        readme = f.read()
+
+with open('LICENSE') as f:
+    license = f.read()
 
 setup(
     name='SPARK',
     version='0.1.0',
     description='SPARK python package for GASKAP users',
-    # long_description=readme,
+    long_description=readme,
     classifiers=[
         'Development status :: 1 - Alpha',
         'License :: CC-By-SA2.0',
